@@ -96,6 +96,47 @@ python3 server.py
 
 To call it locally, use `http://127.0.0.1:8080` and a new idempotency key. For a local chat ID, ensure Telegram token is in your environment and run `python3 get_chat_id.py`.
 
+## Local test layers
+
+Install the development dependencies in the virtual environment above:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+### Unit tests (mock data only)
+
+```bash
+pytest -m "not integration and not telegram_e2e"
+```
+
+These cover Telegram request construction and success, rate-limit, and network-error responses. They do not need credentials, PostgreSQL, or network access.
+
+### Integration tests (PostgreSQL plus mocked Telegram)
+
+Create a **disposable local database whose name ends in `_test` or `-test`**. The integration fixture truncates `telegram_jobs` in that database. Then set `TEST_DATABASE_URL` and run:
+
+```bash
+createdb email_alert_test
+export TEST_DATABASE_URL="postgresql://localhost/email_alert_test"
+pytest -m integration
+```
+
+These tests run the actual HTTP handler and queue against PostgreSQL while replacing the Telegram API with a deterministic mock. They never send a Telegram message. The fixture refuses to connect if the database name does not have the required test suffix.
+
+### Local end-to-end test (real Telegram message)
+
+Start the local app with the intended local `.env` values, then, in another shell, explicitly opt in:
+
+```bash
+set -a; source .env; set +a
+RUN_TELEGRAM_E2E=1 E2E_BASE_URL=http://127.0.0.1:8080 pytest -m telegram_e2e
+```
+
+This sends a clearly labeled `[Email Alert E2E TEST]` message to the configured `TELEGRAM_CHAT_ID`, waits for the job to become `sent`, and verifies Telegram returned a message ID. It is skipped by default. Check the target chat before opting in. Do not run it against a production chat unless you intend to post a test message there.
+
+The same opt-in test can later serve as the Railway SIT smoke test by setting `E2E_BASE_URL` to the Railway HTTPS domain and loading that deployment's caller API key as `LOCAL_API_KEY`. It sends a real Telegram message, so the test chat and authorization must be agreed with the client first.
+
 ## Operational notes
 
 - Use a dedicated bot per client deployment unless the bot owner has explicitly approved sharing it.
