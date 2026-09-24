@@ -1,79 +1,106 @@
 # Email Alert Telegram Sender
 
-A small Python HTTP service that sends a text message to one configured Telegram chat.
-It uses only Python's standard library. Each person configures their own bot token,
-chat ID, and sender API key in a local `.env` file.
+An authenticated HTTP API that queues text messages in PostgreSQL and delivers them to one Telegram chat. Each client deploys a separate copy with their own Telegram bot, chat, API key, and Railway project.
 
-## Get a Telegram bot token
+## What delivery means
 
-### Create a new bot
+- `POST /send` stores the job in PostgreSQL and returns `202 Accepted` with a job ID.
+- A background worker sends queued jobs and retries temporary network errors and Telegram rate limits with backoff.
+- The `Idempotency-Key` header prevents the same caller retry from creating a second job. Reuse the exact same key and body when retrying a request.
+- `GET /jobs/{job_id}` returns `queued`, `sending`, `sent`, or `failed`.
+- Telegram does not support an idempotency key for `sendMessage`. If a connection drops after Telegram accepts the message but before this service records the result, a retry can produce a duplicate. This is durable at-least-once delivery, not a guarantee of exactly-once delivery.
 
-1. Open [@BotFather](https://t.me/BotFather) in Telegram and send `/newbot`.
+Messages and idempotency keys are stored in PostgreSQL. Clients should send only the data they want Telegram to receive. The service does not log message bodies or credentials. Protect database access and set an appropriate data-retention policy for your client.
+
+## Deploy a client copy to Railway
+
+1. Fork this GitHub repository into the client's GitHub account (or use **Deploy from GitHub Repo** in Railway with access to the repository).
+2. In Railway, create a project from the fork.
+3. Add a Railway PostgreSQL service to the project. Railway provides its private `DATABASE_URL` variable.
+4. In the app service's **Variables**, set:
+
+   | Variable | Value |
+   | --- | --- |
+   | `TELEGRAM_BOT_TOKEN` | Token for the client's bot from BotFather |
+   | `TELEGRAM_CHAT_ID` | Private or group ID that should receive messages |
+   | `LOCAL_API_KEY` | A new random API key for calling this service |
+   | `DATABASE_URL` | Reference the PostgreSQL service's `DATABASE_URL` |
+
+   In Railway's variable editor, reference the database variable with the service's name, for example `${{Postgres.DATABASE_URL}}` (use the exact PostgreSQL service name shown in the project). Keep all credentials in Railway Variables, never in GitHub.
+
+5. Deploy. `railway.json` starts the app, configures `/health`, and restarts the process after failures. Railway supplies the `PORT`; the app listens on `0.0.0.0`.
+6. Generate a unique caller key, for example `openssl rand -hex 32`, and save it in Railway as `LOCAL_API_KEY`. Share it only with the systems allowed to send to this client's Telegram chat.
+7. Open the service's generated HTTPS domain and verify `/health` returns `{"ok": true}`. The health endpoint intentionally reports process health only; it does not expose configuration or database details.
+
+Railway health checks gate new deployments; they are not ongoing monitoring. Set up Railway alerts/log monitoring for service and database failures, and review database backups/retention for the client's needs. See [Railway healthchecks](https://docs.railway.com/deployments/healthchecks), [Railway PostgreSQL](https://docs.railway.com/databases/postgresql), and [Railway variables](https://docs.railway.com/variables).
+
+## Create or reuse a Telegram bot
+
+### Create a bot
+
+1. Open [@BotFather](https://t.me/BotFather) and send `/newbot`.
 2. Choose a display name and a username ending in `bot`.
-3. Copy the token BotFather returns into `TELEGRAM_BOT_TOKEN` in `.env`.
+3. Copy its token directly into Railway's `TELEGRAM_BOT_TOKEN` variable.
 
 ### Reuse a bot you already manage
 
-1. Open [@BotFather](https://t.me/BotFather), send `/mybots`, and select the bot you own.
-2. Open its **API Token** option and copy the token into `TELEGRAM_BOT_TOKEN` in `.env`.
-3. If you lost the token or it was exposed, use BotFather's `/token` flow to issue a replacement,
-   then update every app that uses the old token.
+1. Open [@BotFather](https://t.me/BotFather), send `/mybots`, and select your bot.
+2. Open **API Token** and copy the token into Railway's `TELEGRAM_BOT_TOKEN` variable.
+3. If the token was lost or exposed, use BotFather's `/token` flow to issue a replacement, then update every application that uses the old token.
 
-You cannot retrieve another person's bot token from its username or Telegram profile. Ask its
-owner to configure the integration or create a bot of your own. A bot token lets its holder
-control that bot; keep it private, never commit `.env`, and never paste the token into a public issue.
+You cannot retrieve another person's bot token from its username or Telegram profile. Ask its owner to configure the integration or create a bot of your own. A bot token lets its holder control the bot; keep it private and never commit it.
 
-## Get a private or group chat ID
+### Get a private or group chat ID
 
-1. For a private chat, open the bot and send it `/start` or another message. For a group, enable
-   **Allow Groups** in BotFather if needed, add the bot, then send `/start@YourBotUsername` there.
-2. Run `python3 get_chat_id.py`. It prints pending private and group chat IDs without message contents.
-3. Copy the ID for the intended private chat or group into `TELEGRAM_CHAT_ID` in `.env`.
+1. For a private chat, open the bot and send it `/start` or another message. For a group, enable **Allow Groups** in BotFather if needed, add the bot, then send `/start@YourBotUsername` in the group.
+2. On a local machine with Python 3, configure the token in a temporary environment and run `python3 get_chat_id.py` (see local setup below). The helper prints pending private and group IDs without message contents.
+3. Put the intended ID in Railway's `TELEGRAM_CHAT_ID` variable.
 
-The bot must receive a message in the intended chat before its ID appears. The helper reads
-pending updates through Telegram's `getUpdates` API. Telegram does not allow `getUpdates` while a
-webhook is set, and another polling integration may consume updates first. If this bot already
-serves a live app, do not disable its webhook or stop its poller just to run this helper; ask the
-bot's owner to read `message.chat.id` from the existing webhook/polling handler instead. See the
-[Telegram Bot API update docs](https://core.telegram.org/bots/api#getupdates).
+Telegram's `getUpdates` cannot be used while a webhook is set, and another poller may consume the update first. If the existing bot serves a live integration, do not disable its webhook or stop its poller just for this helper; ask the bot owner to read `message.chat.id` from their existing update handler. See [Telegram getUpdates](https://core.telegram.org/bots/api#getupdates).
 
-## Configure
+## Call the API
 
-Clone the repository, copy `.env.example` to `.env`, and set these values. Keep `.env` local;
-it is ignored by Git.
+Send a unique idempotency key per logical message. If the caller times out or gets a network error, retry with the same key and exact same text.
 
-```dotenv
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-LOCAL_API_KEY=
-HOST=127.0.0.1
-PORT=8080
+```bash
+curl -sS -X POST "https://YOUR-RAILWAY-DOMAIN/send" \
+  -H "Authorization: Bearer YOUR_LOCAL_API_KEY" \
+  -H "Idempotency-Key: email-event-12345" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"You got mail from Vir"}'
 ```
 
-Generate a separate sender API key with `openssl rand -hex 32` and put the output in
-`LOCAL_API_KEY`. This key is for this local HTTP service; it is not issued by Telegram and is
-different from `TELEGRAM_BOT_TOKEN`.
+Example accepted response:
+
+```json
+{"ok":true,"job_id":42,"status":"queued"}
+```
+
+Check delivery status:
+
+```bash
+curl -sS "https://YOUR-RAILWAY-DOMAIN/jobs/42" \
+  -H "Authorization: Bearer YOUR_LOCAL_API_KEY"
+```
 
 ## Run locally
 
+Requires Python 3 and the `psycopg` dependency. Create a local PostgreSQL database and set the values from `.env.example` in `.env`; keep `.env` untracked. Then:
+
 ```bash
-cd "/Users/varindernagra/Documents/GitHub/email alert"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 python3 server.py
 ```
 
-In another Terminal window, send a message through the local server:
+To call it locally, use `http://127.0.0.1:8080` and a new idempotency key. For a local chat ID, ensure Telegram token is in your environment and run `python3 get_chat_id.py`.
 
-```bash
-curl -sS -X POST "http://127.0.0.1:8080/send" \
-  -H "Authorization: Bearer ${LOCAL_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"text":"hello world"}'
-```
+## Operational notes
 
-Before running the request in that second window, load the local settings with
-`set -a; source .env; set +a`.
-
-The service binds to localhost by default and accepts only authenticated send requests.
-For a hosted deployment, set `HOST=0.0.0.0`, configure the same secrets in the host's
-secret manager, and place the public endpoint behind HTTPS. Do not commit `.env` or put
-either key in source control.
+- Use a dedicated bot per client deployment unless the bot owner has explicitly approved sharing it.
+- The caller API key is a bearer credential. Rotate it by changing `LOCAL_API_KEY` in Railway Variables and updating callers.
+- Telegram bot tokens are credentials too. Rotate via BotFather and update Railway Variables if exposed.
+- The queue retains messages and status rows. Define a retention/cleanup policy before high-volume use.
+- This service is a single-process deployment. PostgreSQL job locking prevents duplicate workers from claiming the same queued job, but Telegram's send API still leaves the ambiguous-timeout duplicate case described above.
+- This repo sends messages only. It does not read a mailbox or trigger on incoming email; connect an approved email automation to `POST /send` separately.
