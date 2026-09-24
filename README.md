@@ -197,7 +197,7 @@ The configured destination is stored with each queued job. Editing the allowlist
 - Telegram bot tokens are credentials too. Rotate via BotFather and update Railway Variables if exposed.
 - The queue retains messages and status rows. Define a retention/cleanup policy before high-volume use.
 - This service is a single-process deployment. PostgreSQL job locking prevents duplicate workers from claiming the same queued job, but Telegram's send API still leaves the ambiguous-timeout duplicate case described above.
-- This repo sends messages only. It does not read a mailbox or trigger on incoming email; connect an approved email automation to `POST /send` separately.
+- This repo sends messages only. It does not read a mailbox or trigger on incoming email; connect an approved email automation to `POST /send` separately. For client-owned Gmail workflows built in Activepieces, see [the Activepieces Gmail workflow playbook](docs/activepieces-gmail-workflows.md).
 
 ## Manual SIT checklist
 
