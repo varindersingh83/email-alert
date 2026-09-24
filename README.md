@@ -6,22 +6,36 @@ chat ID, and sender API key in a local `.env` file.
 
 ## Get a Telegram bot token
 
+### Create a new bot
+
 1. Open [@BotFather](https://t.me/BotFather) in Telegram and send `/newbot`.
 2. Choose a display name and a username ending in `bot`.
 3. Copy the token BotFather returns into `TELEGRAM_BOT_TOKEN` in `.env`.
-4. Keep the token private. Never commit `.env` or paste the token into a public issue.
 
-## Get a group chat ID
+### Reuse a bot you already manage
 
-1. In BotFather, open the bot settings and enable **Allow Groups** if it is disabled.
-2. Add the bot to the Telegram group.
-3. In the group, send `/start@YourBotUsername` (replace it with the bot's actual username).
-4. Run `python3 get_chat_id.py`. It prints the group ID and title without printing message contents.
-5. Put the numeric ID into `TELEGRAM_CHAT_ID` in `.env`.
+1. Open [@BotFather](https://t.me/BotFather), send `/mybots`, and select the bot you own.
+2. Open its **API Token** option and copy the token into `TELEGRAM_BOT_TOKEN` in `.env`.
+3. If you lost the token or it was exposed, use BotFather's `/token` flow to issue a replacement,
+   then update every app that uses the old token.
 
-The bot must be in the group and receive a group update before the ID appears. This helper
-only reads pending Telegram updates; if another integration consumes them first, send a new
-command in the group and retry.
+You cannot retrieve another person's bot token from its username or Telegram profile. Ask its
+owner to configure the integration or create a bot of your own. A bot token lets its holder
+control that bot; keep it private, never commit `.env`, and never paste the token into a public issue.
+
+## Get a private or group chat ID
+
+1. For a private chat, open the bot and send it `/start` or another message. For a group, enable
+   **Allow Groups** in BotFather if needed, add the bot, then send `/start@YourBotUsername` there.
+2. Run `python3 get_chat_id.py`. It prints pending private and group chat IDs without message contents.
+3. Copy the ID for the intended private chat or group into `TELEGRAM_CHAT_ID` in `.env`.
+
+The bot must receive a message in the intended chat before its ID appears. The helper reads
+pending updates through Telegram's `getUpdates` API. Telegram does not allow `getUpdates` while a
+webhook is set, and another polling integration may consume updates first. If this bot already
+serves a live app, do not disable its webhook or stop its poller just to run this helper; ask the
+bot's owner to read `message.chat.id` from the existing webhook/polling handler instead. See the
+[Telegram Bot API update docs](https://core.telegram.org/bots/api#getupdates).
 
 ## Configure
 
@@ -37,7 +51,8 @@ PORT=8080
 ```
 
 Generate a separate sender API key with `openssl rand -hex 32` and put the output in
-`LOCAL_API_KEY`. This is not the Telegram token.
+`LOCAL_API_KEY`. This key is for this local HTTP service; it is not issued by Telegram and is
+different from `TELEGRAM_BOT_TOKEN`.
 
 ## Run locally
 
