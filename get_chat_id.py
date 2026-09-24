@@ -28,21 +28,22 @@ except HTTPError as error:
 except URLError as error:
     raise SystemExit(f"Could not reach Telegram: {error.reason}") from None
 
-groups = {}
+chats = {}
 for update in payload.get("result", []):
     message = next(
         (update[key] for key in ("message", "edited_message", "channel_post", "edited_channel_post") if key in update),
         {},
     )
     chat = message.get("chat", {})
-    if chat.get("type") in ("group", "supergroup"):
-        groups[chat["id"]] = chat.get("title", "(untitled group)")
+    if chat.get("type") in ("private", "group", "supergroup"):
+        label = chat.get("title", "private chat" if chat["type"] == "private" else "untitled group")
+        chats[chat["id"]] = (chat["type"], label)
 
-if not groups:
+if not chats:
     raise SystemExit(
-        "No group updates found. Add the bot to a group, send "
-        "/start@YourBotUsername there, then run this command again."
+        "No private or group updates found. Message the bot privately or add it to a group "
+        "and send /start@YourBotUsername there, then run this command again."
     )
 
-for chat_id, title in groups.items():
-    print(f"{chat_id}\t{title}")
+for chat_id, (chat_type, title) in chats.items():
+    print(f"{chat_id}\t{chat_type}\t{title}")
