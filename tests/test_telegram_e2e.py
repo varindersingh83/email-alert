@@ -153,7 +153,7 @@ def test_real_telegram_delivery():
         if last_status == "sent":
             assert job["telegram_message_id"]
             assert job["destination"] == destination
-            print(json.dumps({"sit": "passed", "job_id": accepted["job_id"],
+            print(json.dumps({"sit": "passed", "run_id": unique, "job_id": accepted["job_id"],
                               "request_id": request_id, "destination": destination,
                               "telegram_message_id": job["telegram_message_id"]}))
             return

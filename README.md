@@ -172,7 +172,7 @@ E2E_DESTINATION=default \
 pytest -m telegram_e2e -s
 ```
 
-Set `LOCAL_API_KEY` in the local shell to the key configured on that Railway app before running. Set `E2E_DESTINATION` to the name of the intended test chat. The test prints a job ID, request ID, destination name, and Telegram message ID for log lookup. Redirects are rejected. The test sends one real Telegram message, so verify the configured test chat before opting in.
+Set `LOCAL_API_KEY` in the local shell to the key configured on that Railway app before running. Set `E2E_DESTINATION` to the name of the intended test chat. The test prints a run ID, job ID, request ID, destination name, and Telegram message ID for log lookup and visual comparison. Redirects are rejected. The test sends one real Telegram message, so verify the configured test chat before opting in.
 
 GitHub Actions runs the unit and local PostgreSQL integration suites on every push and pull request. The Telegram test requires the explicit opt-in above and is excluded from CI.
 
