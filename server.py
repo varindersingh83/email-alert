@@ -11,6 +11,7 @@ import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -18,6 +19,24 @@ import psycopg
 from psycopg.rows import dict_row
 
 
+WORKER_POLL_SECONDS = 1
+MAX_BODY_BYTES = 16_384
+
+
+def load_dotenv() -> None:
+    """Load local KEY=value settings without overriding the host environment."""
+    env_file = Path(__file__).with_name(".env")
+    if not env_file.exists():
+        return
+    for raw_line in env_file.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_dotenv()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -25,8 +44,6 @@ API_KEY = os.environ.get("LOCAL_API_KEY", "")
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
 MAX_ATTEMPTS = int(os.environ.get("MAX_ATTEMPTS", "8"))
-WORKER_POLL_SECONDS = 1
-MAX_BODY_BYTES = 16_384
 
 
 def database() -> psycopg.Connection:
