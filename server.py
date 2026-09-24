@@ -257,14 +257,19 @@ class Handler(BaseHTTPRequestHandler):
         print(f"{self.address_string()} - {format % args}", flush=True)
 
 
-if not all((DATABASE_URL, BOT_TOKEN, CHAT_ID, API_KEY)):
-    raise SystemExit("Set DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, and LOCAL_API_KEY.")
+def main() -> None:
+    if not all((DATABASE_URL, BOT_TOKEN, CHAT_ID, API_KEY)):
+        raise SystemExit("Set DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, and LOCAL_API_KEY.")
 
-try:
-    initialize_database()
-except psycopg.Error as error:
-    raise SystemExit(f"Database initialization failed: {type(error).__name__}") from error
+    try:
+        initialize_database()
+    except psycopg.Error as error:
+        raise SystemExit(f"Database initialization failed: {type(error).__name__}") from error
 
-threading.Thread(target=worker, name="telegram-queue-worker", daemon=True).start()
-print(f"Listening on {HOST}:{PORT}", flush=True)
-ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    threading.Thread(target=worker, name="telegram-queue-worker", daemon=True).start()
+    print(f"Listening on {HOST}:{PORT}", flush=True)
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+
+
+if __name__ == "__main__":
+    main()
