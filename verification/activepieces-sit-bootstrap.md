@@ -28,21 +28,21 @@ The first health-check request briefly returned service unavailable during appli
 
 ## Live setup check
 
-Checked again on 2026-09-25 against the Railway SIT project and the connected Gmail accounts. This is evidence of service readiness only, not proof that the requested Gmail flows ran.
+Checked on 2026-09-25 against the Activepieces SIT workspace and the sender API using one harmless synthetic `fizz` email. No email body, OAuth token, API key, database URL, or bot credential is recorded here.
 
 | Check | Result |
 | --- | --- |
-| Activepieces deployment | Deployment `87721a18-ee28-40c8-8d2f-501f45ab7763` remains `SUCCESS`; logs show the worker polling through `2026-09-25T03:14:19Z`. |
-| Telegram sender | `email-alert-sit.up.railway.app` is online and has one `default` destination. An earlier manual sender API smoke test was logged as job `2`, status `sent`, Telegram message ID `8` on 2026-09-24; it is not one of the requested Gmail-triggered runs. |
-| Gmail account identity | The connected Gmail reader confirms `founders@asynccraft.com`. A search of that mailbox (`in:anywhere from:varinder83singh@gmail.com {subject:fizz subject:buzz}`) returned no matches. The sender's recent Sent search to this mailbox shows only the older `Telegram mail trigger test`, not `fizz` or `buzz`. |
-| Activepieces UI | The public instance still shows **Create your account**. No owner signup, Gmail OAuth, AI provider connection, flow, or requested email run exists yet. |
+| Activepieces workspace | `https://activepieces-sit.up.railway.app` is available. Flow `Email content: fizz` exists in `Personal Project` and remains unpublished. |
+| Gmail | `founders@asynccraft.com` is connected. The Gmail New Email trigger was tested against the harmless `fizz` sample and returned its message data. |
+| OpenAI | The OpenAI connection is connected. Ask ChatGPT was tested and generated a summary from the sample email; the message text is intentionally omitted. |
+| Sender key | The Activepieces project variable named `LOCAL_API_KEY` exists. Its value was not viewed or written to this repository. |
+| Sender request | The flow's HTTP POST to `/send` returned HTTP `202` and job `5`. An authenticated status lookup returned HTTP `200`: job `5`, destination `default`, status `sent`, one attempt, Telegram message ID `9`; created at `2026-09-25T05:12:30Z`. |
+| Flow state | The Gmail, OpenAI, and sender HTTP steps all show tested. The flow is still unpublished, so this test was manual; no live trigger is enabled. |
 
 ## Not done yet
 
-- The browser is on the Activepieces **Create your account** page. The owner must enter and submit the first administrator password themselves, then retain recovery access. The browser tab is left open for that handoff.
-- No Gmail connection exists in this Activepieces workspace yet. Google OAuth has not been granted here.
-- No AI provider/model connection exists yet, so no email-content analysis or generated notification text has been run.
-- No `fizz` or `buzz` flow has been created or published.
-- The expected `fizz` and `buzz` test emails were not found in the authenticated mailbox search. No Activepieces flow run or Telegram delivery tied to those emails was verified.
+- The `Email content: buzz` flow has not been created or tested.
+- The `fizz` flow has not been published. New incoming email is not yet triggering the workflow automatically.
+- No client-owned Activepieces project or client mailbox is configured; this is a SIT workspace under `Personal Project`.
 
-The default Activepieces Gmail piece currently requests `gmail.readonly`, `gmail.modify`, `gmail.compose`, and `gmail.send` scopes (plus account email). The mailbox owner must review the Google consent screen and decide whether to grant these permissions before connecting the mailbox.
+The default Activepieces Gmail piece currently requests `gmail.readonly`, `gmail.modify`, `gmail.compose`, and `gmail.send` scopes (plus account email), even when the flow uses only New Email. Review the exact Google consent screen and mailbox policy before connecting a client mailbox.
