@@ -26,12 +26,23 @@ Redacted to metadata; no email body, OAuth token, API key, database URL, or bot 
 
 The first health-check request briefly returned service unavailable during application startup; the next check succeeded within the configured five-minute retry window.
 
+## Live setup check
+
+Checked again on 2026-09-25 against the Railway SIT project and the connected Gmail accounts. This is evidence of service readiness only, not proof that the requested Gmail flows ran.
+
+| Check | Result |
+| --- | --- |
+| Activepieces deployment | Deployment `87721a18-ee28-40c8-8d2f-501f45ab7763` remains `SUCCESS`; logs show the worker polling through `2026-09-25T03:14:19Z`. |
+| Telegram sender | `email-alert-sit.up.railway.app` is online and has one `default` destination. An earlier manual sender API smoke test was logged as job `2`, status `sent`, Telegram message ID `8` on 2026-09-24; it is not one of the requested Gmail-triggered runs. |
+| Gmail account identity | The connected Gmail reader confirms `founders@asynccraft.com`. A search of that mailbox (`in:anywhere from:varinder83singh@gmail.com {subject:fizz subject:buzz}`) returned no matches. The sender's recent Sent search to this mailbox shows only the older `Telegram mail trigger test`, not `fizz` or `buzz`. |
+| Activepieces UI | The public instance still shows **Create your account**. No owner signup, Gmail OAuth, AI provider connection, flow, or requested email run exists yet. |
+
 ## Not done yet
 
-- The browser is on the Activepieces **Create your account** page. The client owner must create the first administrator account and keep recovery access. The page is public, so claim it promptly.
+- The browser is on the Activepieces **Create your account** page. The owner must enter and submit the first administrator password themselves, then retain recovery access. The browser tab is left open for that handoff.
 - No Gmail connection exists in this Activepieces workspace yet. Google OAuth has not been granted here.
 - No AI provider/model connection exists yet, so no email-content analysis or generated notification text has been run.
 - No `fizz` or `buzz` flow has been created or published.
-- No test email was sent and no Activepieces flow run or Telegram delivery was verified.
+- The expected `fizz` and `buzz` test emails were not found in the authenticated mailbox search. No Activepieces flow run or Telegram delivery tied to those emails was verified.
 
 The default Activepieces Gmail piece currently requests `gmail.readonly`, `gmail.modify`, `gmail.compose`, and `gmail.send` scopes (plus account email). The mailbox owner must review the Google consent screen and decide whether to grant these permissions before connecting the mailbox.
