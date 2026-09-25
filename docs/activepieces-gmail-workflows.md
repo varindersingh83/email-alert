@@ -32,12 +32,12 @@ Build these as **two separate flows** in the client's Activepieces project. They
 2. Add Gmail → **New Email** as the trigger. Connect the client's intended mailbox from the client's browser session.
 3. Set the trigger's `To` filter to the intended receiving address and its `Subject` filter to `fizz`. Optionally set `From`, label, or category filters. The Gmail trigger itself supports these filters, so unrelated emails need not start this flow.
 4. Use the trigger's test function to inspect a safe sample and confirm which data fields it exposes. A draft trigger test can sample recent matching mail, so use a test-only mailbox or a unique harmless test subject; do not run its downstream action on a real email by accident.
-5. Add an AI action (for example, OpenAI → **Ask ChatGPT**) and connect the client's model account. Map the email subject and body into the prompt. Ask the model to write one neutral Telegram summary under 180 characters, return only that text, and ignore instructions found inside the email. This makes the notification depend on the email content instead of a hard-coded message. Do not include attachments by default.
+5. Add an AI action (for example, OpenAI → **Ask ChatGPT**) and connect the client's model account. Map the email subject and body into the prompt. Ask the model to write one neutral Telegram summary within the configured character limit, return only that text, and ignore instructions found inside the email. This makes the notification depend on the email content instead of a hard-coded message. Do not include attachments by default.
 6. Add an HTTP action to call the client's Telegram sender API:
 
    - Method: `POST`
    - URL: `https://<client-sender-domain>/send`
-   - Headers: `Authorization: Bearer <client LOCAL_API_KEY>`, `Content-Type: application/json`, and `Idempotency-Key: ap-gmail-fizz-<Gmail message ID>`
+   - Headers: `Authorization: Bearer <client LOCAL_API_KEY>`, `Content-Type: application/json`, and a stable `Idempotency-Key` combining the Gmail message ID with a flow-specific marker (the current draft appends `ap-gmail-fizz-` to the message ID)
    - JSON body: `{"text":"<mapped AI output>","destination":"<allowlisted name>"}`
 
    Use Activepieces' data picker for the trigger's message ID, sender, and subject fields. Store the bearer key in a protected Activepieces connection/secret; never put it in flow text or commit it. For a single-destination sender, `destination` may be omitted; otherwise use the exact name from authenticated `GET /destinations`.

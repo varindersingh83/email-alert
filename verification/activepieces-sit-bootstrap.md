@@ -39,10 +39,21 @@ Checked on 2026-09-25 against the Activepieces SIT workspace and the sender API 
 | Sender request | The flow's HTTP POST to `/send` returned HTTP `202` and job `5`. An authenticated status lookup returned HTTP `200`: job `5`, destination `default`, status `sent`, one attempt, Telegram message ID `9`; created at `2026-09-25T05:12:30Z`. |
 | Flow state | The Gmail, OpenAI, and sender HTTP steps all show tested. The flow is still unpublished, so this test was manual; no live trigger is enabled. |
 
+### Buzz flow verification
+
+Checked on 2026-09-25 using one harmless synthetic email. No email body, OAuth token, API key, database URL, or bot credential is recorded here.
+
+| Check | Result |
+| --- | --- |
+| Flow | `Email content: buzz` exists in `Personal Project` and remains unpublished. |
+| Gmail | New Email trigger tested against the synthetic message; configured for subject `buzz`, the approved sender, and recipient `founders@asynccraft.com`. |
+| OpenAI | Ask ChatGPT tested with the saved OpenAI connection and `gpt-6-luna`; it produced a concise alert from the sample. The generated text is intentionally omitted. |
+| Sender request | The HTTP POST to `/send` returned HTTP `202` and job `6`. An authenticated status lookup returned HTTP `200`: destination `default`, status `sent`, one attempt, Telegram message ID `10`, and no delivery error. |
+| Flow state | Gmail, OpenAI, and sender HTTP steps show tested. The temporary status-lookup step was removed. The flow remains unpublished; this was step testing, not a live trigger run. |
+
 ## Not done yet
 
-- The `Email content: buzz` flow has not been created or tested.
-- The `fizz` flow has not been published. New incoming email is not yet triggering the workflow automatically.
+- Neither `Email content: fizz` nor `Email content: buzz` has been published. Incoming mail is not yet triggering these flows automatically.
 - No client-owned Activepieces project or client mailbox is configured; this is a SIT workspace under `Personal Project`.
 
 The default Activepieces Gmail piece currently requests `gmail.readonly`, `gmail.modify`, `gmail.compose`, and `gmail.send` scopes (plus account email), even when the flow uses only New Email. Review the exact Google consent screen and mailbox policy before connecting a client mailbox.
