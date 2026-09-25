@@ -30,6 +30,7 @@ The first health-check request briefly returned service unavailable during appli
 
 - The browser is on the Activepieces **Create your account** page. The client owner must create the first administrator account and keep recovery access. The page is public, so claim it promptly.
 - No Gmail connection exists in this Activepieces workspace yet. Google OAuth has not been granted here.
+- No AI provider/model connection exists yet, so no email-content analysis or generated notification text has been run.
 - No `fizz` or `buzz` flow has been created or published.
 - No test email was sent and no Activepieces flow run or Telegram delivery was verified.
 

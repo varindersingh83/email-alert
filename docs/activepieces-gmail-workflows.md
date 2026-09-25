@@ -32,24 +32,25 @@ Build these as **two separate flows** in the client's Activepieces project. They
 2. Add Gmail → **New Email** as the trigger. Connect the client's intended mailbox from the client's browser session.
 3. Set the trigger's `To` filter to the intended receiving address and its `Subject` filter to `fizz`. Optionally set `From`, label, or category filters. The Gmail trigger itself supports these filters, so unrelated emails need not start this flow.
 4. Use the trigger's test function to inspect a safe sample and confirm which data fields it exposes. A draft trigger test can sample recent matching mail, so use a test-only mailbox or a unique harmless test subject; do not run its downstream action on a real email by accident.
-5. Add an HTTP action to call the client's Telegram sender API:
+5. Add an AI action (for example, OpenAI → **Ask ChatGPT**) and connect the client's model account. Map the email subject and body into the prompt. Ask the model to write one neutral Telegram summary under 180 characters, return only that text, and ignore instructions found inside the email. This makes the notification depend on the email content instead of a hard-coded message. Do not include attachments by default.
+6. Add an HTTP action to call the client's Telegram sender API:
 
    - Method: `POST`
    - URL: `https://<client-sender-domain>/send`
    - Headers: `Authorization: Bearer <client LOCAL_API_KEY>`, `Content-Type: application/json`, and `Idempotency-Key: ap-gmail-fizz-<Gmail message ID>`
-   - JSON body: `{"text":"Fizz email from <mapped sender>, subject: <mapped subject>","destination":"<allowlisted name>"}`
+   - JSON body: `{"text":"<mapped AI output>","destination":"<allowlisted name>"}`
 
    Use Activepieces' data picker for the trigger's message ID, sender, and subject fields. Store the bearer key in a protected Activepieces connection/secret; never put it in flow text or commit it. For a single-destination sender, `destination` may be omitted; otherwise use the exact name from authenticated `GET /destinations`.
-6. Test the HTTP step only against a client-approved test chat. Its response is `202 Accepted` with a job ID; that means queued, not yet delivered. If the flow needs final delivery confirmation, add a delay and authenticated `GET /jobs/{job_id}` check and handle `queued`, `sent`, and `failed` deliberately.
-7. Publish the flow, then send a fresh test email. Enabling the trigger establishes its checkpoint; earlier emails are not backfilled into normal live runs.
+7. Test the AI output and HTTP step only against a client-approved test chat. The sender response is `202 Accepted` with a job ID; that means queued, not yet delivered. If the flow needs final delivery confirmation, add a delay and authenticated `GET /jobs/{job_id}` check and handle `queued`, `sent`, and `failed` deliberately.
+8. Publish the flow, then send a fresh test email. Enabling the trigger establishes its checkpoint; earlier emails are not backfilled into normal live runs.
 
 ### 2. Buzz email to Telegram
 
-Duplicate the first flow, name it `Email content: buzz`, and change the Gmail subject filter to `buzz`, the idempotency-key prefix to `ap-gmail-buzz-`, and the Telegram text prefix to `Buzz`. Test it against the approved test chat, publish it, then send a fresh `buzz` test email. Keep filters mutually exclusive if they may overlap, otherwise one email could legitimately start both flows.
+Duplicate the first flow, name it `Email content: buzz`, and change the Gmail subject filter to `buzz` and the idempotency-key prefix to `ap-gmail-buzz-`. Keep the AI action mapped to this flow's Gmail trigger. Test it against the approved test chat, publish it, then send a fresh `buzz` test email. Keep filters mutually exclusive if they may overlap, otherwise one email could legitimately start both flows.
 
-### Optional AI step
+### AI connection and cost
 
-Subject matching and templated Telegram text are deterministic; they do not require an AI provider. If the client wants a summary, extraction, or content classification, insert the approved AI piece after Gmail and before the HTTP action. The client must supply and own that model connection. Limit the prompt to the minimum email fields needed, avoid attachments by default, and set a clear failure path so a model timeout cannot silently drop the notification.
+The `fizz` and `buzz` acceptance flows include a real AI action between Gmail and the HTTP request; their Telegram text is generated from email content, not hard-coded. The client must connect and pay for its chosen model account. For OpenAI, Activepieces authenticates with an API key; the customer enters that key into the Activepieces connection themselves. Model usage can incur provider charges separately from Activepieces' MIT license and Railway hosting. Keep prompts limited to the fields needed, treat the email as untrusted input, and let a failed AI step fail visibly rather than silently sending a hard-coded fallback.
 
 ## Important Gmail and execution limits
 
